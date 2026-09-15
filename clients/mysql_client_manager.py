@@ -2,7 +2,7 @@ import asyncio
 
 from sqlalchemy import text
 
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine, AsyncSession
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.conf.app_config import DBConfig, app_config
 
@@ -10,6 +10,7 @@ from app.conf.app_config import DBConfig, app_config
 class MySQLClientManager:
     def __init__(self, config: DBConfig):
         self.engine: AsyncEngine | None = None
+        self.session_factory = None
         self.config = config
 
     def _get_url(self):
@@ -17,6 +18,7 @@ class MySQLClientManager:
 
     def init(self):
         self.engine = create_async_engine(self._get_url(), pool_size=10, pool_pre_ping=True)
+        self.session_factory = async_sessionmaker(self.engine, autoflush=True, expire_on_commit=False)
 
     async def close(self):
         await self.engine.dispose()
@@ -31,7 +33,7 @@ if __name__ == '__main__':
 
 
     async def test():
-        async with AsyncSession(engine, autoflush=True, expire_on_commit=False) as session:
+        async with dw_mysql_client_manager.session_factory() as session:
             sql = "select * from dw.fact_order limit 10"
             result = await session.execute(text(sql))
 
