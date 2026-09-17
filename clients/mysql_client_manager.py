@@ -29,7 +29,6 @@ dw_mysql_client_manager = MySQLClientManager(app_config.db_dw)
 
 if __name__ == '__main__':
     dw_mysql_client_manager.init()
-    engine = dw_mysql_client_manager.engine
 
 
     async def test():
