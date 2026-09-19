@@ -7,6 +7,8 @@ from omegaconf import OmegaConf
 
 from app.conf.meta_config import MetaConfig
 from app.entities.column_info import ColumnInfo
+from app.entities.column_metric import ColumnMetric
+from app.entities.metric_info import MetricInfo
 from app.entities.table_info import TableInfo
 from app.entities.value_info import ValueInfo
 from app.repositories.es.value_es_repository import ValueESRepository
@@ -125,6 +127,32 @@ class MetaKnowledgeService:
 
         await self.value_es_repository.index(value_infos)
 
+    async def _save_metric_to_meta_db(self, meta_config: MetaConfig):
+        metric_infos: list[MetricInfo] = []
+        column_metrics: list[ColumnMetric] = []
+
+        for metric in meta_config.metrics:
+            # metric -> MetricInfo
+            metric_info = MetricInfo(
+                id=metric.name,
+                name=metric.name,
+                description=metric.description,
+                relevant_columns=metric.relevant_columns,
+                alias=metric.alias
+            )
+            metric_infos.append(metric_info)
+            for column in metric.relevant_columns:
+                # column -> ColumnMetric
+                column_metric = ColumnMetric(
+                    column_id=column,
+                    metric_id=metric.name
+                )
+                column_metrics.append(column_metric)
+
+        async with self.meta_mysql_repository.session.begin():
+            self.meta_mysql_repository.save_metric_infos(metric_infos)
+            self.meta_mysql_repository.save_column_metrics(column_metrics)
+
     async def build(self, config_path: Path):
         # 1.读取配置文件
         context = OmegaConf.load(config_path)
@@ -145,7 +173,7 @@ class MetaKnowledgeService:
 
         # 3.根据配置文件同步指定的指标信息
         if meta_config.metrics:
-            pass
             # 3.1 将指标信息保存到meta数据库中0
+            await self._save_metric_to_meta_db(meta_config)
 
             # 3.2 对指标信息建立向量索引
