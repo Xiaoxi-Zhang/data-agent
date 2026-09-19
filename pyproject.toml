@@ -11,11 +11,11 @@ dependencies = [
     "huggingface-hub>=1.31.0",
     "jieba>=0.42.1",
     "langchain>=1.4.0",
-    "langchain-huggingface>=1.2.2",
+    "langchain-huggingface==1.2.1",
     "langgraph>=1.2.11",
     "loguru>=0.7.3",
     "omegaconf>=2.3.1",
     "pyyaml>=6.0.3",
-    "qdrant-client>=1.19.0",
+    "qdrant-client==1.17.0",
     "sqlalchemy>=2.0.52",
 ]

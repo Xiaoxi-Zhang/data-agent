@@ -7,7 +7,7 @@ from app.repositories.mysql.dw.dw_mysql_repository import DWMySQLRepository
 from app.repositories.mysql.meta.meta_mysql_repository import MetaMySQLRepository
 from app.repositories.qdrant.column_qdrant_repository import ColumnQdrantRepository
 from app.services.meta_knowledge_service import MetaKnowledgeService
-from clients import es_client_manager
+from clients.es_client_manager import es_client_manager
 from clients.embedding_client_manager import embedding_client_manager
 from clients.mysql_client_manager import meta_mysql_client_manager, dw_mysql_client_manager
 from clients.qdrant_client_manager import qdrant_client_manager

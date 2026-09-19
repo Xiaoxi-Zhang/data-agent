@@ -8,6 +8,7 @@ from omegaconf import OmegaConf
 from app.conf.meta_config import MetaConfig
 from app.entities.column_info import ColumnInfo
 from app.entities.table_info import TableInfo
+from app.entities.value_info import ValueInfo
 from app.repositories.es.value_es_repository import ValueESRepository
 from app.repositories.mysql.dw.dw_mysql_repository import DWMySQLRepository
 from app.repositories.mysql.meta.meta_mysql_repository import MetaMySQLRepository
@@ -99,7 +100,7 @@ class MetaKnowledgeService:
             # 向量化
             embeddings: list[list[float]] = []
             embedding_texts = [point['embedding_text'] for point in points]
-            embedding_batch_size = 20
+            embedding_batch_size = 10
             for i in range(0, len(embedding_texts), embedding_batch_size):
                 batch_embedding_texts = embedding_texts[i:i + embedding_batch_size]
                 batch_embeddings = await self.embedding_client.aembed_documents(batch_embedding_texts)
@@ -112,6 +113,23 @@ class MetaKnowledgeService:
 
             # 2.3 对指定的维度字段建立全文索引
             await self.value_es_repository.ensure_index()
+
+            value_infos: list[ValueInfo] = []
+            for table in meta_config.tables:
+                for column in table.columns:
+                    if column.sync:
+                        # 查询字段取值
+                        current_column_values = await self.dw_mysql_repository.get_column_values(table.name,
+                                                                                                 column.name,
+                                                                                                 limit=1000000)
+                        current_values_infos = [ValueInfo(id=f"{table.name}.{column.name}.{current_column_value}",
+                                                          value=current_column_value,
+                                                          column_id=f"{table.name}.{column.name}") for
+                                                current_column_value in
+                                                current_column_values]
+                        value_infos.extend(current_values_infos)
+
+            await self.value_es_repository.index(value_infos)
 
         # 3.根据配置文件同步指定的指标信息
         if meta_config.metrics:
