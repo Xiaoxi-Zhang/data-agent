@@ -1,0 +1,2 @@
+2026-09-21 20:58:52.815 | INFO     | app.agent.nodes.extract_keywords:extract_keywords:34 - 抽取关键词: ['华北地区', '销售总额', '统计', '统计华北地区销售总额']
+2026-09-21 21:00:16.454 | INFO     | app.agent.nodes.extract_keywords:extract_keywords:34 - 抽取关键词: ['华北地区', '统计华北地区销售总额', '销售总额', '统计']

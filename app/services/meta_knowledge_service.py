@@ -15,6 +15,8 @@ from app.repositories.es.value_es_repository import ValueESRepository
 from app.repositories.mysql.dw.dw_mysql_repository import DWMySQLRepository
 from app.repositories.mysql.meta.meta_mysql_repository import MetaMySQLRepository
 from app.repositories.qdrant.column_qdrant_repository import ColumnQdrantRepository
+from app.repositories.qdrant.metric_qdrant_repository import MetricQdrantRepository
+from app.core.log import logger
 
 
 class MetaKnowledgeService:
@@ -22,12 +24,14 @@ class MetaKnowledgeService:
                  dw_mysql_repository: DWMySQLRepository,
                  column_qdrant_repository: ColumnQdrantRepository,
                  embedding_client: HuggingFaceEndpointEmbeddings,
-                 value_es_repository: ValueESRepository):
+                 value_es_repository: ValueESRepository,
+                 metric_qdrant_repository: MetricQdrantRepository):
         self.meta_mysql_repository: MetaMySQLRepository = meta_mysql_repository
         self.dw_mysql_repository: DWMySQLRepository = dw_mysql_repository
         self.column_qdrant_repository: ColumnQdrantRepository = column_qdrant_repository
         self.embedding_client: HuggingFaceEndpointEmbeddings = embedding_client
         self.value_es_repository: ValueESRepository = value_es_repository
+        self.metric_qdrant_repository: MetricQdrantRepository = metric_qdrant_repository
 
     async def _save_tables_to_meta_db(self, meta_config: MetaConfig) -> list[ColumnInfo]:
         table_infos: list[TableInfo] = []
@@ -127,7 +131,7 @@ class MetaKnowledgeService:
 
         await self.value_es_repository.index(value_infos)
 
-    async def _save_metric_to_meta_db(self, meta_config: MetaConfig):
+    async def _save_metric_to_meta_db(self, meta_config: MetaConfig) -> list[MetricInfo]:
         metric_infos: list[MetricInfo] = []
         column_metrics: list[ColumnMetric] = []
 
@@ -153,27 +157,74 @@ class MetaKnowledgeService:
             self.meta_mysql_repository.save_metric_infos(metric_infos)
             self.meta_mysql_repository.save_column_metrics(column_metrics)
 
+        return metric_infos
+
+    async def _save_metric_to_qdrant(self, metric_infos: list[MetricInfo]):
+        await self.metric_qdrant_repository.ensure_collection()
+
+        points: list[dict] = []
+        for metric_info in metric_infos:
+            points.append({
+                'id': uuid.uuid4(),
+                'embedding_text': metric_info.name,
+                'payload': asdict(metric_info)
+            })
+
+            points.append({
+                'id': uuid.uuid4(),
+                'embedding_text': metric_info.description,
+                'payload': asdict(metric_info)
+            })
+
+            for alia in metric_info.alias:
+                points.append({
+                    'id': uuid.uuid4(),
+                    'embedding_text': alia,
+                    'payload': asdict(metric_info)
+                })
+
+        # 向量化
+        embeddings: list[list[float]] = []
+        embedding_texts = [point['embedding_text'] for point in points]
+        embedding_batch_size = 10
+        for i in range(0, len(embedding_texts), embedding_batch_size):
+            batch_embedding_texts = embedding_texts[i:i + embedding_batch_size]
+            batch_embeddings = await self.embedding_client.aembed_documents(batch_embedding_texts)
+            embeddings.extend(batch_embeddings)
+
+        ids = [point['id'] for point in points]
+        payloads = [point['payload'] for point in points]
+
+        await self.metric_qdrant_repository.upsert(ids, embeddings, payloads)
+
     async def build(self, config_path: Path):
         # 1.读取配置文件
         context = OmegaConf.load(config_path)
         schema = OmegaConf.structured(MetaConfig)
         meta_config: MetaConfig = OmegaConf.to_object(OmegaConf.merge(schema, context))
         # print(meta_config.metrics)
+        logger.info('加载配置文件成功')
 
         # 2.根据配置文件同步指定的表信息
         if meta_config.tables:
             # 2.1 将表信息和字段信息保存meta数据库中
             column_infos = await self._save_tables_to_meta_db(meta_config)
+            logger.info('保存表信息和字段信息到数据库成功')
 
             # 2.2 对字段信息建立向量索引
             await self._save_columns_to_qdrant(column_infos)
+            logger.info('为字段信息建立向量索引成功')
 
             # 2.3 对指定的维度字段建立全文索引
             await self._save_values_to_es(meta_config)
+            logger.info('为指定的维度字段值建立全文索引成功')
 
         # 3.根据配置文件同步指定的指标信息
         if meta_config.metrics:
             # 3.1 将指标信息保存到meta数据库中0
-            await self._save_metric_to_meta_db(meta_config)
+            metric_infos = await self._save_metric_to_meta_db(meta_config)
+            logger.info('保存指标信息到数据库成功')
 
             # 3.2 对指标信息建立向量索引
+            await self._save_metric_to_qdrant(metric_infos)
+            logger.info('为指标信息建立向量索引成功')

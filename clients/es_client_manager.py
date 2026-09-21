@@ -14,8 +14,8 @@ class ESClientManager:
     def init(self):
         self.client = AsyncElasticsearch(hosts=[self._get_url()])
 
-    def close(self):
-        self.client.close()
+    async def close(self):
+        await self.client.close()
 
 
 es_client_manager = ESClientManager(app_config.es)
