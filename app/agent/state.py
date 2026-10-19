@@ -4,6 +4,14 @@ from app.entities.column_info import ColumnInfo
 from app.entities.metric_info import MetricInfo
 from app.entities.value_info import ValueInfo
 
+class DateInfoState(TypedDict):
+    date: str
+    weekday: str
+    quarter: str
+
+class DBInfoState(TypedDict):
+    dialect: str
+    version: str
 
 class MetricInfoState(TypedDict):
     name: str
@@ -32,7 +40,12 @@ class DataAgentState(TypedDict):
     retrieved_metric_infos: list[MetricInfo]  # 检索到的指标信息
     retrieved_value_infos: list[ValueInfo]  # 检索到的字段取值信息
 
-    table_infos: list[TableInfoState]
-    metric_infos: list[MetricInfoState]
+    table_infos: list[TableInfoState] # 表信息
+    metric_infos: list[MetricInfoState] # 指标信息
+
+    date_info: DateInfoState # 日期信息
+    db_info: DBInfoState # 数据库信息
+
+    sql: str # 生成的SQL
 
     error: str  # 校验SQL时出现的错误信息

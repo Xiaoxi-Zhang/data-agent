@@ -120,11 +120,11 @@ class MetaKnowledgeService:
                 if column.sync:
                     # 查询字段取值
                     current_column_values = await self.dw_mysql_repository.get_column_values(table.name,
-                                                                                             column.name,
-                                                                                             limit=1000000)
+                                                                                            column.name,
+                                                                                            limit=1000000)
                     current_values_infos = [ValueInfo(id=f"{table.name}.{column.name}.{current_column_value}",
-                                                      value=current_column_value,
-                                                      column_id=f"{table.name}.{column.name}") for
+                                                    value=current_column_value,
+                                                    column_id=f"{table.name}.{column.name}") for
                                             current_column_value in
                                             current_column_values]
                     value_infos.extend(current_values_infos)
