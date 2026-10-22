@@ -8,10 +8,10 @@ from app.repositories.mysql.meta.meta_mysql_repository import MetaMySQLRepositor
 from app.repositories.qdrant.metric_qdrant_repository import MetricQdrantRepository
 from app.repositories.qdrant.column_qdrant_repository import ColumnQdrantRepository
 from app.services.meta_knowledge_service import MetaKnowledgeService
-from clients.es_client_manager import es_client_manager
-from clients.embedding_client_manager import embedding_client_manager
-from clients.mysql_client_manager import meta_mysql_client_manager, dw_mysql_client_manager
-from clients.qdrant_client_manager import qdrant_client_manager
+from app.clients import es_client_manager
+from app.clients import embedding_client_manager
+from app.clients import meta_mysql_client_manager, dw_mysql_client_manager
+from app.clients import qdrant_client_manager
 
 
 async def build(config_path: Path):

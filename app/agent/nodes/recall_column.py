@@ -12,33 +12,40 @@ from app.prompt.prompt_load import load_prompt
 
 async def recall_column(state: DataAgentState, runtime: Runtime[DataAgentContext]):
     writer = runtime.stream_writer
-    writer("召回字段信息")
+    step = "召回字段信息"
+    writer({"type": "progress", "step": step, "status": "running"})
 
-    keywords = state['keywords']
-    query = state['query']
-    column_qdrant_repository = runtime.context['column_qdrant_repository']
-    embedding_client = runtime.context['embedding_client']
+    try:
+        keywords = state['keywords']
+        query = state['query']
+        column_qdrant_repository = runtime.context['column_qdrant_repository']
+        embedding_client = runtime.context['embedding_client']
 
-    # 借助 LLM 扩展关键词
-    # chain = prompt | llm | output_parsers
-    prompt = PromptTemplate(template=load_prompt('extend_keywords_for_column_recall'), input_variables=['query'])
-    output_parsers = JsonOutputParser()
-    chain = prompt | llm | output_parsers
+        # 借助 LLM 扩展关键词
+        # chain = prompt | llm | output_parsers
+        prompt = PromptTemplate(template=load_prompt('extend_keywords_for_column_recall'), input_variables=['query'])
+        output_parsers = JsonOutputParser()
+        chain = prompt | llm | output_parsers
 
-    result = await chain.ainvoke({"query": query})
+        result = await chain.ainvoke({"query": query})
 
-    keywords = set(keywords + result)
+        keywords = set(keywords + result)
 
-    # 从 Qdrant 中检索字段信息
-    column_info_map: dict[str, ColumnInfo] = {}
-    for keyword in keywords:
-        # 对 keyword 进行 embedding
-        embedding = await embedding_client.aembed_query(keyword)
-        current_column_infos: list[ColumnInfo] = await column_qdrant_repository.search(embedding)
-        for column_info in current_column_infos:
-            if column_info.id not in column_info_map:
-                column_info_map[column_info.id] = column_info
-    retrieved_column_infos: list[ColumnInfo] = list(column_info_map.values())
+        # 从 Qdrant 中检索字段信息
+        column_info_map: dict[str, ColumnInfo] = {}
+        for keyword in keywords:
+            # 对 keyword 进行 embedding
+            embedding = await embedding_client.aembed_query(keyword)
+            current_column_infos: list[ColumnInfo] = await column_qdrant_repository.search(embedding)
+            for column_info in current_column_infos:
+                if column_info.id not in column_info_map:
+                    column_info_map[column_info.id] = column_info
+        retrieved_column_infos: list[ColumnInfo] = list(column_info_map.values())
 
-    logger.info(f"检索到的字段信息: {list(column_info_map.keys())}")
-    return {'retrieved_column_infos': retrieved_column_infos}
+        logger.info(f"检索到的字段信息: {list(column_info_map.keys())}")
+        writer({"type": "progress", "step": step, "status": "success"})
+        return {'retrieved_column_infos': retrieved_column_infos}
+    except Exception as e:
+        logger.error(f"{step} 失败: {e}")
+        writer({"type": "progress", "step": step, "status": "error"})
+        raise

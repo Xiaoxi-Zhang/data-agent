@@ -21,13 +21,12 @@ from app.agent.state import DataAgentState
 from app.repositories.es.value_es_repository import ValueESRepository
 from app.repositories.mysql.dw.dw_mysql_repository import DWMySQLRepository
 from app.repositories.mysql.meta.meta_mysql_repository import MetaMySQLRepository
-from app.repositories.qdrant import metric_qdrant_repository
 from app.repositories.qdrant.column_qdrant_repository import ColumnQdrantRepository
 from app.repositories.qdrant.metric_qdrant_repository import MetricQdrantRepository
-from clients.embedding_client_manager import embedding_client_manager
-from clients.es_client_manager import es_client_manager
-from clients.mysql_client_manager import meta_mysql_client_manager, dw_mysql_client_manager
-from clients.qdrant_client_manager import qdrant_client_manager
+from app.clients import embedding_client_manager
+from app.clients import es_client_manager
+from app.clients import meta_mysql_client_manager, dw_mysql_client_manager
+from app.clients import qdrant_client_manager
 
 graph_builder = StateGraph(state_schema=DataAgentState, context_schema=DataAgentContext)
 
@@ -98,8 +97,8 @@ if __name__ == '__main__':
 
         await qdrant_client_manager.close()
         await es_client_manager.close()
-        meta_mysql_client_manager.close()
-        dw_mysql_client_manager.close()
+        await meta_mysql_client_manager.close()
+        await dw_mysql_client_manager.close()
 
 
     asyncio.run(test())
